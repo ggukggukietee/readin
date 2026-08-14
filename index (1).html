@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Bookshelf — Your Reading App</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#18181b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafafa;
+  --surface:#ffffff;
+  --border:#e6e6ea;
+  --ink:#18181b;
+  --ink-soft:#52525b;
+  --muted:#a1a1aa;
+  --accent:#3a4dff;
+  --accent-soft:#eceeff;
+  --danger:#dc2626;
+  --danger-soft:#fdeeee;
+  --radius:16px;
+  --radius-sm:10px;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 10px 26px -14px rgba(0,0,0,.16);
+  --font-ui:'Inter', sans-serif;
+  --font-reader:'Inter', sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; font-family:var(--font-ui); color:var(--ink);
+  background:var(--bg) no-repeat center/cover fixed; overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+#app{display:flex; height:100vh; width:100vw;}
+
+/* ---------- Sidebar ---------- */
+#sidebar{
+  width:220px; flex-shrink:0; background:var(--surface);
+  border-right:1px solid var(--border); display:flex; flex-direction:column;
+  padding:22px 14px;
+}
+.brand{ font-weight:800; font-size:17px; letter-spacing:-.01em; padding:4px 10px 22px; display:flex; align-items:center; gap:8px;}
+.brand .dot{ width:9px; height:9px; border-radius:3px; background:var(--accent); flex-shrink:0;}
+.nav-btn{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  padding:10px 12px; border:none; background:none; border-radius:var(--radius-sm);
+  color:var(--ink-soft); font-family:var(--font-ui); font-size:14px; font-weight:500;
+  cursor:pointer; margin-bottom:2px; transition:.12s;
+}
+.nav-btn:hover{ background:var(--bg); color:var(--ink); }
+.nav-btn.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.nav-btn svg{ width:17px; height:17px; flex-shrink:0; }
+.sidebar-stat{
+  margin-top:auto; padding:14px 12px; border-radius:var(--radius-sm); background:var(--bg);
+  border:1px solid var(--border);
+}
+.sidebar-stat .label{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+.sidebar-stat .value{ font-size:20px; font-weight:700; margin-top:2px; }
+
+/* ---------- Main ---------- */
+#main{ flex:1; overflow-y:auto; position:relative; background:var(--bg); }
+.view{ display:none; min-height:100%; }
+.view.active{ display:block; animation:fadeIn .2s ease; }
+@keyframes fadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+.topbar{ padding:32px 40px 6px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.topbar h1{ font-weight:800; font-size:26px; margin:0; letter-spacing:-.02em; }
+.topbar .sub{ color:var(--muted); font-size:13.5px; margin-top:4px; }
+
+/* ---------- Buttons / inputs ---------- */
+.btn{
+  font-family:var(--font-ui); font-size:13.5px; font-weight:600;
+  padding:9px 16px; border-radius:var(--radius-sm); border:1px solid transparent;
+  cursor:pointer; transition:.12s; display:inline-flex; align-items:center; gap:6px;
+}
+.btn-primary{ background:var(--ink); color:#fff; }
+.btn-primary:hover{ background:#000; }
+.btn-accent{ background:var(--accent); color:#fff; }
+.btn-accent:hover{ opacity:.9; }
+.btn-ghost{ background:var(--surface); border-color:var(--border); color:var(--ink-soft); }
+.btn-ghost:hover{ border-color:var(--ink); color:var(--ink); }
+.btn-danger{ background:var(--danger-soft); color:var(--danger); }
+.btn-danger:hover{ background:#fbdcdc; }
+input[type=text], textarea, select{
+  font-family:var(--font-ui); font-size:14px; border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:10px 12px; background:var(--surface); color:var(--ink); width:100%;
+}
+input[type=text]:focus, textarea:focus, select:focus{ outline:2px solid var(--accent-soft); border-color:var(--accent); }
+label.field-label{ font-size:11.5px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; display:block; margin-bottom:6px; }
+.field{ margin-bottom:18px; }
+.saved-hint{ font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+.saved-hint .dot{ width:6px; height:6px; border-radius:50%; background:#22c55e; }
+
+/* ---------- Library ---------- */
+#library-grid{ padding:16px 40px 60px; display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:22px; }
+.book-card{ cursor:pointer; display:flex; flex-direction:column; gap:9px; }
+.cover{
+  aspect-ratio:3/4; border-radius:var(--radius-sm); background:linear-gradient(155deg,#2c2f3a,#18181b);
+  box-shadow: var(--shadow); display:flex; align-items:center; justify-content:center;
+  background-size:cover; background-position:center; position:relative; transition:transform .15s ease, box-shadow .15s ease;
+  overflow:hidden; border:1px solid var(--border);
+}
+.book-card:hover .cover{ transform:translateY(-3px); box-shadow:0 4px 6px rgba(0,0,0,.05), 0 16px 32px -14px rgba(0,0,0,.28); }
+.cover .cover-title{ font-weight:700; color:#f4f4f5; padding:14px; text-align:center; font-size:14px; line-height:1.35; }
+.book-meta .book-title{ font-weight:600; color:var(--ink); display:block; margin-bottom:2px; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.book-meta .meta-line{ font-size:12px; color:var(--muted); }
+.book-meta .meta-line .time{ color:var(--accent); font-weight:600; }
+
+.add-card .cover{ background:var(--surface); border:1.5px dashed var(--border); box-shadow:none; color:var(--muted); font-size:28px; font-weight:300; }
+.add-card:hover .cover{ border-color:var(--accent); color:var(--accent); transform:none; }
+
+.lib-actions{ padding:0 40px; display:flex; gap:10px; margin-bottom:10px; margin-top:10px; }
+.empty-state{ padding:80px 40px; text-align:center; color:var(--muted); }
+.empty-state .big{ font-weight:700; font-size:17px; color:var(--ink); margin-bottom:6px; }
+
+/* ---------- Writer ---------- */
+#writer-view .writer-wrap{ padding:16px 40px 60px; max-width:880px; }
+.chapter-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.chapter-tab{ padding:6px 13px; border-radius:20px; font-size:12.5px; cursor:pointer; background:var(--surface); color:var(--ink-soft); border:1px solid var(--border); font-weight:500; }
+.chapter-tab.active{ background:var(--ink); color:#fff; border-color:var(--ink); font-weight:600; }
+.chapter-tab.add{ border:1px dashed var(--border); background:transparent; }
+#writer-view textarea{ min-height:380px; font-family:var(--font-reader); font-size:16px; line-height:1.75; resize:vertical; }
+.cover-upload{
+  width:120px; aspect-ratio:3/4; border-radius:var(--radius-sm); background:var(--surface);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; background-size:cover; background-position:center;
+  border:1px solid var(--border); color:var(--muted); font-size:11.5px; text-align:center; padding:6px; flex-shrink:0;
+}
+
+/* ---------- Reader ---------- */
+#reader-view{ background-size:cover; background-position:center; }
+.reader-top{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 30px;
+  position:sticky; top:0; backdrop-filter:blur(8px); background:rgba(250,250,250,.78); z-index:3; flex-wrap:wrap;
+  border-bottom:1px solid var(--border);
+}
+.reader-top .rt-left{ display:flex; align-items:center; gap:10px; min-width:0; }
+.reader-top select{ width:auto; max-width:220px; }
+.reader-title{ font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
+.timer-pill{ font-size:12px; color:var(--ink-soft); background:var(--surface); border:1px solid var(--border); padding:6px 12px; border-radius:20px; display:flex; align-items:center; gap:6px; }
+.timer-pill .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); }
+.reader-page{ max-width:680px; margin:0 auto; padding:44px 26px 120px; }
+.reader-page .content{ font-family:var(--reader-font, var(--font-reader)); font-size:var(--reader-size,17px); line-height:1.9; color:var(--ink); white-space:pre-wrap; }
+.reader-page h2{ font-weight:800; font-size:22px; margin-bottom:28px; letter-spacing:-.01em; }
+
+/* ---------- Settings ---------- */
+#settings-view .settings-wrap{ padding:16px 40px 60px; max-width:760px; }
+.settings-section{ background:var(--surface); border-radius:var(--radius); padding:22px 24px; margin-bottom:16px; border:1px solid var(--border); }
+.settings-section h3{ font-weight:700; font-size:15px; margin:0 0 14px; }
+.row{ display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
+.swatch-preview{ width:64px; height:44px; border-radius:8px; background-size:cover; background-position:center; border:1px solid var(--border); background-color:var(--bg); flex-shrink:0; }
+.stat-total{ font-weight:800; font-size:30px; color:var(--accent); letter-spacing:-.02em; }
+.hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <nav id="sidebar">
+    <div class="brand"><span class="dot"></span>Bookshelf</div>
+    <button class="nav-btn active" data-view="library">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="16" rx="1"/></svg>
+      Library
+    </button>
+    <button class="nav-btn" data-view="writer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>
+      Write
+    </button>
+    <button class="nav-btn" data-view="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 01-4 0v-.09A1.7 1.7 0 009 19.4a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-1.55-1H3a2 2 0 010-4h.09A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001-1.55V3a2 2 0 014 0v.09A1.7 1.7 0 0015 4.6a1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 9a1.7 1.7 0 001.55 1H21a2 2 0 010 4h-.09a1.7 1.7 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+    <div class="sidebar-stat">
+      <div class="label">Total reading time</div>
+      <div class="value" id="sidebar-total-time">0m</div>
+    </div>
+  </nav>
+
+  <main id="main">
+
+    <section class="view active" id="library-view">
+      <div class="topbar">
+        <div>
+          <h1>Your Library</h1>
+          <div class="sub" id="lib-sub">Loading…</div>
+        </div>
+      </div>
+      <div class="lib-actions">
+        <button class="btn btn-primary" id="btn-new-story">+ New Story</button>
+        <button class="btn btn-ghost" id="btn-import-epub">Import EPUB</button>
+        <input type="file" id="epub-input" accept=".epub" style="display:none">
+      </div>
+      <div id="library-grid"></div>
+    </section>
+
+    <section class="view" id="writer-view">
+      <div class="topbar">
+        <div>
+          <h1 id="writer-heading">New Story</h1>
+          <div class="saved-hint"><span class="dot"></span><span id="save-status">Saved automatically as you type</span></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-danger" id="btn-delete-story" style="display:none;">Delete</button>
+          <button class="btn btn-primary" id="btn-close-writer">Done</button>
+        </div>
+      </div>
+      <div class="writer-wrap">
+        <div class="row" style="margin-bottom:20px;">
+          <div class="cover-upload" id="writer-cover">Cover image<br>(click to choose)</div>
+          <input type="file" id="writer-cover-input" accept="image/*" style="display:none">
+          <div style="flex:1;min-width:220px;">
+            <div class="field">
+              <label class="field-label">Title</label>
+              <input type="text" id="writer-title" placeholder="e.g. Summer Winds">
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Chapters</label>
+          <div class="chapter-tabs" id="chapter-tabs"></div>
+        </div>
+        <div class="field">
+          <label class="field-label">Chapter title</label>
+          <input type="text" id="chapter-title" placeholder="Chapter 1" style="margin-bottom:12px;">
+          <textarea id="chapter-content" placeholder="Start writing here…"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="reader-view">
+      <div class="reader-top">
+        <div class="rt-left">
+          <button class="btn btn-ghost" id="btn-back-library">← Library</button>
+          <div class="reader-title" id="reader-title"></div>
+          <select id="chapter-select"></select>
+        </div>
+        <div class="timer-pill"><span class="dot"></span><span id="reader-timer">0m read</span></div>
+      </div>
+      <div class="reader-page">
+        <h2 id="reader-chapter-title"></h2>
+        <div class="content" id="reader-content"></div>
+      </div>
+    </section>
+
+    <section class="view" id="settings-view">
+      <div class="topbar">
+        <div>
+          <h1>Settings</h1>
+          <div class="sub">Everything here is stored only on this device.</div>
+        </div>
+      </div>
+      <div class="settings-wrap">
+
+        <div class="settings-section">
+          <h3>Total reading time</h3>
+          <div class="stat-total" id="total-reading-time">0m</div>
+        </div>
+
+        <div class="settings-section">
+          <h3>App background</h3>
+          <div class="row">
+            <div class="swatch-preview" id="preview-app-bg"></div>
+            <button class="btn btn-ghost" id="btn-pick-app-bg">Choose image</button>
+            <button class="btn btn-danger" id="btn-clear-app-bg">Remove</button>
+            <input type="file" id="app-bg-input" accept="image/*" style="display:none">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Default reading-page background</h3>
+          <div class="row">
+            <div class="swatch-preview" id="preview-reader-bg"></div>
+            <button class="btn btn-ghost" id="btn-pick-reader-bg">Choose image</button>
+            <button class="btn btn-danger" id="btn-clear-reader-bg">Remove</button>
+            <input type="file" id="reader-bg-input" accept="image/*" style="display:none">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Fonts</h3>
+          <div class="field">
+            <label class="field-label">Interface font</label>
+            <select id="ui-font-select">
+              <option value="Inter">Inter (default)</option>
+              <option value="Fraunces">Fraunces</option>
+              <option value="Literata">Literata</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">Reading font</label>
+            <select id="reader-font-select">
+              <option value="Inter">Inter (default)</option>
+              <option value="Literata">Literata</option>
+              <option value="Fraunces">Fraunces</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label">Upload your own font (.ttf / .otf / .woff)</label>
+            <input type="file" id="custom-font-input" accept=".ttf,.otf,.woff,.woff2">
+            <div class="hint" id="custom-font-hint">A font you upload will be used for the reading page.</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* ================= IndexedDB layer ================= */
+const DB_NAME = 'reading-app-db';
+const DB_VERSION = 1;
+let db;
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e)=>{
+      const _db = e.target.result;
+      if(!_db.objectStoreNames.contains('stories')) _db.createObjectStore('stories', {keyPath:'id'});
+      if(!_db.objectStoreNames.contains('settings')) _db.createObjectStore('settings', {keyPath:'key'});
+    };
+    req.onsuccess = ()=>{ db = req.result; resolve(db); };
+    req.onerror = ()=> reject(req.error);
+  });
+}
+function tx(store, mode='readonly'){ return db.transaction(store, mode).objectStore(store); }
+function idbGetAll(store){ return new Promise((res,rej)=>{ const r=tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function idbGet(store,key){ return new Promise((res,rej)=>{ const r=tx(store).get(key); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function idbPut(store,val){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').put(val); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function idbDelete(store,key){ return new Promise((res,rej)=>{ const r=tx(store,'readwrite').delete(key); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+
+/* ================= App state ================= */
+let stories = [];
+let settings = { key:'main', appBg:null, readerBg:null, uiFont:'Inter', readerFont:'Inter', customFontData:null, customFontName:null };
+let editingStoryId = null;
+let editingChapters = [];
+let activeChapterIdx = 0;
+let autosaveHandle = null;
+let readerState = { storyId:null, chapterIdx:0, timerHandle:null };
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+function uid(){ return 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function fmtMinutes(sec){
+  const m = Math.round(sec/60);
+  if(m < 60) return m + 'm';
+  const h = Math.floor(m/60), r = m%60;
+  return h + 'h ' + (r? r+'m':'');
+}
+function fileToDataURL(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ================= View switching ================= */
+function showView(name){
+  $$('.view').forEach(v=>v.classList.remove('active'));
+  $('#'+name+'-view').classList.add('active');
+  $$('.nav-btn').forEach(b=> b.classList.toggle('active', b.dataset.view===name));
+  if(name==='library') renderLibrary();
+  if(name==='settings') renderSettings();
+  if(name!=='reader') stopReaderTimer();
+  if(name!=='writer' && editingStoryId!==undefined) flushAutosave();
+}
+$$('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(btn.dataset.view==='writer'){ openWriter(null); }
+    else showView(btn.dataset.view);
+  });
+});
+
+/* ================= Library ================= */
+function renderLibrary(){
+  const grid = $('#library-grid');
+  $('#lib-sub').textContent = stories.length ? (stories.length + (stories.length===1?' story':' stories')) : 'No stories yet — write one or import an EPUB.';
+  const totalSec = stories.reduce((a,s)=>a+(s.readingSeconds||0),0);
+  $('#sidebar-total-time').textContent = fmtMinutes(totalSec);
+  grid.innerHTML = '';
+  const realStories = stories.filter(s => (s.title && s.title.trim()) || s.chapters.some(c=>c.content && c.content.trim()));
+  if(realStories.length===0 && stories.length===0){
+    grid.innerHTML = '';
+  }
+  stories.slice().sort((a,b)=>b.updatedAt-a.updatedAt).forEach(story=>{
+    if(!((story.title && story.title.trim()) || story.chapters.some(c=>c.content && c.content.trim()))) return;
+    const card = document.createElement('div');
+    card.className = 'book-card';
+    const totalSecStory = story.readingSeconds || 0;
+    card.innerHTML = `
+      <div class="cover" style="${story.cover? `background-image:url(${story.cover})`:''}">
+        ${story.cover? '' : `<div class="cover-title">${escapeHtml(story.title||'Untitled')}</div>`}
+      </div>
+      <div class="book-meta">
+        <span class="book-title">${escapeHtml(story.title||'Untitled')}</span>
+        <span class="meta-line">${story.chapters.length} ch · <span class="time">${fmtMinutes(totalSecStory)}</span></span>
+      </div>`;
+    card.addEventListener('click', ()=> openReader(story.id, 0));
+    card.addEventListener('contextmenu', (e)=>{ e.preventDefault(); openWriter(story.id); });
+    grid.appendChild(card);
+  });
+  const addCard = document.createElement('div');
+  addCard.className = 'book-card add-card';
+  addCard.innerHTML = `<div class="cover">+</div><div class="book-meta"><span class="book-title">New story</span></div>`;
+  addCard.addEventListener('click', ()=> openWriter(null));
+  grid.appendChild(addCard);
+}
+
+/* ================= Writer (true autosave) ================= */
+function openWriter(storyId){
+  flushAutosave();
+  editingStoryId = storyId || uid();
+  const isNew = !storyId;
+  const story = storyId ? stories.find(s=>s.id===storyId) : null;
+  editingChapters = story ? JSON.parse(JSON.stringify(story.chapters)) : [{title:'Chapter 1', content:''}];
+  activeChapterIdx = 0;
+  $('#writer-heading').textContent = story ? 'Edit Story' : 'New Story';
+  $('#writer-title').value = story ? story.title : '';
+  $('#writer-cover').style.backgroundImage = story && story.cover ? `url(${story.cover})` : '';
+  $('#writer-cover').textContent = story && story.cover ? '' : 'Cover image (click to choose)';
+  $('#writer-cover').dataset.cover = story && story.cover ? story.cover : '';
+  $('#btn-delete-story').style.display = story ? 'inline-flex' : 'none';
+  window._writerIsNew = isNew;
+  renderChapterTabs();
+  loadChapterIntoEditor(0);
+  showView('writer');
+}
+function renderChapterTabs(){
+  const wrap = $('#chapter-tabs');
+  wrap.innerHTML = '';
+  editingChapters.forEach((ch,i)=>{
+    const tab = document.createElement('div');
+    tab.className = 'chapter-tab' + (i===activeChapterIdx?' active':'');
+    tab.textContent = ch.title || ('Chapter '+(i+1));
+    tab.addEventListener('click', ()=>{ saveEditorIntoChapter(); activeChapterIdx=i; renderChapterTabs(); loadChapterIntoEditor(i); scheduleAutosave(); });
+    wrap.appendChild(tab);
+  });
+  const add = document.createElement('div');
+  add.className = 'chapter-tab add';
+  add.textContent = '+ New chapter';
+  add.addEventListener('click', ()=>{
+    saveEditorIntoChapter();
+    editingChapters.push({title:'Chapter '+(editingChapters.length+1), content:''});
+    activeChapterIdx = editingChapters.length-1;
+    renderChapterTabs(); loadChapterIntoEditor(activeChapterIdx); scheduleAutosave();
+  });
+  wrap.appendChild(add);
+}
+function loadChapterIntoEditor(i){
+  const ch = editingChapters[i];
+  $('#chapter-title').value = ch.title;
+  $('#chapter-content').value = ch.content;
+}
+function saveEditorIntoChapter(){
+  if(!editingChapters[activeChapterIdx]) return;
+  editingChapters[activeChapterIdx].title = $('#chapter-title').value;
+  editingChapters[activeChapterIdx].content = $('#chapter-content').value;
+}
+function scheduleAutosave(){
+  $('#save-status').textContent = 'Saving…';
+  if(autosaveHandle) clearTimeout(autosaveHandle);
+  autosaveHandle = setTimeout(doAutosave, 500);
+}
+async function doAutosave(){
+  saveEditorIntoChapter();
+  const title = $('#writer-title').value.trim();
+  const cover = $('#writer-cover').dataset.cover || null;
+  const hasContent = title || editingChapters.some(c => (c.content && c.content.trim()) || (c.title && c.title.trim() && c.title!=='Chapter 1'));
+  const now = Date.now();
+  let story = stories.find(s=>s.id===editingStoryId);
+  if(!hasContent){
+    // nothing meaningful typed yet — don't create a phantom entry
+    $('#save-status').textContent = 'Saved automatically as you type';
+    return;
+  }
+  if(story){
+    story.title = title; story.cover = cover; story.chapters = editingChapters; story.updatedAt = now;
+  } else {
+    story = { id: editingStoryId, title, cover, chapters: editingChapters, readingSeconds:0, createdAt: now, updatedAt: now };
+    stories.push(story);
+  }
+  await idbPut('stories', story);
+  $('#save-status').textContent = 'Saved automatically as you type';
+}
+function flushAutosave(){
+  if(autosaveHandle){ clearTimeout(autosaveHandle); autosaveHandle=null; doAutosave(); }
+}
+['input'].forEach(evt=>{
+  $('#writer-title').addEventListener(evt, scheduleAutosave);
+  $('#chapter-title').addEventListener(evt, ()=>{ saveEditorIntoChapter(); renderChapterTabs(); scheduleAutosave(); });
+  $('#chapter-content').addEventListener(evt, ()=>{ saveEditorIntoChapter(); scheduleAutosave(); });
+});
+
+$('#writer-cover').addEventListener('click', ()=> $('#writer-cover-input').click());
+$('#writer-cover-input').addEventListener('change', async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const dataUrl = await fileToDataURL(file);
+  $('#writer-cover').style.backgroundImage = `url(${dataUrl})`;
+  $('#writer-cover').textContent='';
+  $('#writer-cover').dataset.cover = dataUrl;
+  scheduleAutosave();
+});
+
+$('#btn-close-writer').addEventListener('click', ()=>{ flushAutosave(); showView('library'); });
+
+$('#btn-delete-story').addEventListener('click', async ()=>{
+  if(!editingStoryId) return;
+  if(!confirm('Delete this story? This can\'t be undone.')) return;
+  if(autosaveHandle) clearTimeout(autosaveHandle);
+  await idbDelete('stories', editingStoryId);
+  stories = stories.filter(s=>s.id!==editingStoryId);
+  showView('library');
+});
+$('#btn-new-story').addEventListener('click', ()=> openWriter(null));
+
+/* ================= EPUB import (via JSZip) ================= */
+$('#btn-import-epub').addEventListener('click', ()=> $('#epub-input').click());
+$('#epub-input').addEventListener('change', async (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  $('#lib-sub').textContent = 'Importing EPUB…';
+  try{
+    await ensureJSZip();
+    const zip = await JSZip.loadAsync(file);
+    const containerXml = await zip.file('META-INF/container.xml').async('string');
+    const opfPath = /full-path="([^"]+)"/.exec(containerXml)[1];
+    const opfDir = opfPath.split('/').slice(0,-1).join('/');
+    const opfXml = await zip.file(opfPath).async('string');
+
+    const manifest = {};
+    const manifestRe = /<item\s+[^>]*id="([^"]+)"[^>]*href="([^"]+)"[^>]*\/?>/g;
+    let m;
+    while((m = manifestRe.exec(opfXml))){ manifest[m[1]] = m[2]; }
+    const manifestRe2 = /<item\s+[^>]*href="([^"]+)"[^>]*id="([^"]+)"[^>]*\/?>/g;
+    while((m = manifestRe2.exec(opfXml))){ if(!manifest[m[2]]) manifest[m[2]] = m[1]; }
+
+    const spineIds = [];
+    const spineRe = /<itemref\s+[^>]*idref="([^"]+)"/g;
+    while((m = spineRe.exec(opfXml))){ spineIds.push(m[1]); }
+
+    const titleMatch = /<dc:title[^>]*>([^<]*)<\/dc:title>/.exec(opfXml);
+    const bookTitle = titleMatch ? titleMatch[1] : file.name.replace(/\.epub$/i,'');
+
+    const chapters = [];
+    for(const id of spineIds){
+      const href = manifest[id]; if(!href) continue;
+      const path = opfDir ? opfDir + '/' + href : href;
+      const zf = zip.file(path) || zip.file(decodeURIComponent(path));
+      if(!zf) continue;
+      const html = await zf.async('string');
+      const text = htmlToPlainText(html);
+      if(text.trim().length < 5) continue;
+      const chTitleMatch = /<h[12][^>]*>([^<]*)<\/h[12]>/i.exec(html);
+      chapters.push({ title: chTitleMatch ? chTitleMatch[1].trim() : 'Chapter '+(chapters.length+1), content: text });
+    }
+    if(chapters.length===0) chapters.push({title:'Contents', content:'(Could not read this EPUB\'s content)'});
+
+    const story = { id: uid(), title: bookTitle, cover:null, chapters, readingSeconds:0, createdAt:Date.now(), updatedAt:Date.now() };
+    await idbPut('stories', story);
+    stories.push(story);
+    renderLibrary();
+  }catch(err){
+    console.error(err);
+    alert('Could not import this EPUB file. (' + err.message + ')');
+    renderLibrary();
+  }
+  e.target.value = '';
+});
+function htmlToPlainText(html){
+  const div = document.createElement('div');
+  html = html.replace(/<(p|br|div|h[1-6])[^>]*>/gi, '\n');
+  div.innerHTML = html;
+  return (div.textContent || div.innerText || '').replace(/\n{3,}/g,'\n\n').trim();
+}
+let jsZipPromise = null;
+function ensureJSZip(){
+  if(window.JSZip) return Promise.resolve();
+  if(jsZipPromise) return jsZipPromise;
+  jsZipPromise = new Promise((resolve,reject)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return jsZipPromise;
+}
+
+/* ================= Reader ================= */
+function openReader(storyId, chapterIdx){
+  stopReaderTimer();
+  const story = stories.find(s=>s.id===storyId);
+  if(!story) return;
+  readerState = { storyId, chapterIdx, timerHandle:null };
+  $('#reader-title').textContent = story.title || 'Untitled';
+  const sel = $('#chapter-select');
+  sel.innerHTML = story.chapters.map((c,i)=>`<option value="${i}">${escapeHtml(c.title||('Chapter '+(i+1)))}</option>`).join('');
+  sel.value = chapterIdx;
+  renderReaderChapter();
+  $('#reader-view').style.backgroundImage = settings.readerBg ? `url(${settings.readerBg})` : 'none';
+  showView('reader');
+  startReaderTimer();
+}
+function renderReaderChapter(){
+  const story = stories.find(s=>s.id===readerState.storyId);
+  const ch = story.chapters[readerState.chapterIdx];
+  $('#reader-chapter-title').textContent = ch.title || '';
+  $('#reader-content').textContent = ch.content && ch.content.trim() ? ch.content : '(This chapter is empty — go to Write to add text.)';
+  document.documentElement.style.setProperty('--reader-font', settings.customFontName ? `'${settings.customFontName}'` : getFontStack(settings.readerFont));
+  updateTimerLabel(story.readingSeconds || 0);
+}
+$('#chapter-select').addEventListener('change', (e)=>{
+  readerState.chapterIdx = parseInt(e.target.value,10);
+  renderReaderChapter();
+});
+$('#btn-back-library').addEventListener('click', ()=>{ stopReaderTimer(); showView('library'); });
+
+function startReaderTimer(){
+  readerState.timerHandle = setInterval(async ()=>{
+    if(document.visibilityState !== 'visible') return;
+    const story = stories.find(s=>s.id===readerState.storyId);
+    if(!story) return;
+    story.readingSeconds = (story.readingSeconds||0) + 1;
+    if(story.readingSeconds % 5 === 0){ await idbPut('stories', story); }
+    updateTimerLabel(story.readingSeconds);
+  }, 1000);
+}
+function stopReaderTimer(){
+  if(readerState.timerHandle){ clearInterval(readerState.timerHandle); readerState.timerHandle=null; }
+  const story = stories.find(s=>s.id===readerState.storyId);
+  if(story) idbPut('stories', story);
+}
+function updateTimerLabel(totalSec){ $('#reader-timer').textContent = fmtMinutes(totalSec) + ' read'; }
+
+/* ================= Settings ================= */
+function renderSettings(){
+  const totalSec = stories.reduce((a,s)=>a+(s.readingSeconds||0),0);
+  $('#total-reading-time').textContent = fmtMinutes(totalSec);
+  $('#preview-app-bg').style.backgroundImage = settings.appBg ? `url(${settings.appBg})` : '';
+  $('#preview-reader-bg').style.backgroundImage = settings.readerBg ? `url(${settings.readerBg})` : '';
+  $('#ui-font-select').value = settings.uiFont;
+  $('#reader-font-select').value = settings.readerFont;
+  $('#custom-font-hint').textContent = settings.customFontName
+    ? `Using: ${settings.customFontName} (applied to the reading page)`
+    : 'A font you upload will be used for the reading page.';
+}
+async function saveSettings(){ await idbPut('settings', settings); applySettingsToUI(); }
+function applySettingsToUI(){
+  document.body.style.backgroundImage = settings.appBg ? `url(${settings.appBg})` : 'none';
+  document.documentElement.style.setProperty('--font-ui', getFontStack(settings.uiFont));
+  document.documentElement.style.setProperty('--reader-font', settings.customFontName ? `'${settings.customFontName}'` : getFontStack(settings.readerFont));
+  $('#reader-view').style.backgroundImage = settings.readerBg ? `url(${settings.readerBg})` : 'none';
+}
+function getFontStack(name){
+  if(name==='Fraunces') return "'Fraunces', serif";
+  if(name==='Literata') return "'Literata', serif";
+  return "'Inter', sans-serif";
+}
+$('#btn-pick-app-bg').addEventListener('click', ()=> $('#app-bg-input').click());
+$('#app-bg-input').addEventListener('change', async e=>{ const f=e.target.files[0]; if(!f) return; settings.appBg = await fileToDataURL(f); await saveSettings(); renderSettings(); });
+$('#btn-clear-app-bg').addEventListener('click', async ()=>{ settings.appBg=null; await saveSettings(); renderSettings(); });
+$('#btn-pick-reader-bg').addEventListener('click', ()=> $('#reader-bg-input').click());
+$('#reader-bg-input').addEventListener('change', async e=>{ const f=e.target.files[0]; if(!f) return; settings.readerBg = await fileToDataURL(f); await saveSettings(); renderSettings(); });
+$('#btn-clear-reader-bg').addEventListener('click', async ()=>{ settings.readerBg=null; await saveSettings(); renderSettings(); });
+$('#ui-font-select').addEventListener('change', async e=>{ settings.uiFont = e.target.value; await saveSettings(); });
+$('#reader-font-select').addEventListener('change', async e=>{ settings.readerFont = e.target.value; await saveSettings(); });
+$('#custom-font-input').addEventListener('change', async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const dataUrl = await fileToDataURL(f);
+  const fontName = 'custom-' + f.name.replace(/\.[^.]+$/,'').replace(/[^a-zA-Z0-9]/g,'');
+  try{
+    const face = new FontFace(fontName, `url(${dataUrl})`);
+    await face.load();
+    document.fonts.add(face);
+    settings.customFontData = dataUrl;
+    settings.customFontName = fontName;
+    await saveSettings();
+    renderSettings();
+  }catch(err){ alert('Could not load this font file.'); }
+});
+
+/* ================= Boot ================= */
+async function boot(){
+  await openDB();
+  stories = await idbGetAll('stories');
+  const s = await idbGet('settings','main');
+  if(s) settings = s;
+  if(settings.customFontData && settings.customFontName){
+    try{
+      const face = new FontFace(settings.customFontName, `url(${settings.customFontData})`);
+      await face.load();
+      document.fonts.add(face);
+    }catch(e){}
+  }
+  applySettingsToUI();
+  renderLibrary();
+}
+boot();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
